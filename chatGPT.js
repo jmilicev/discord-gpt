@@ -30,7 +30,7 @@ client.on('guildCreate', async (guild) => {
   );
 
   const message = `
-    Hello Admin! Thank you for inviting Chatbase to your server!
+    Hello Admin! Thank you for inviting ChatGPT to your server!
   
     To get started, you need to set the API key and chatbotID using the set command.
     For more information, the .help command is always available in the server.
@@ -41,12 +41,12 @@ client.on('guildCreate', async (guild) => {
     .setTitle('Getting Started')
     .setDescription('A step by step guide on how to get started')
     .setColor('#4F45E4')
-    .addField('1. Environment', 'Create a private text channel that only the Chatbase bot and you can see using the permissions tab.')
+    .addField('1. Environment', 'Create a private text channel that only the ChatGPT bot and you can see using the permissions tab.')
     .addField('2. Set API key', 'In the private channel, enter .set apikey <your API key>')
     .addField('3. Set Chatbot ID', 'In the private channel, enter .set chatid < chatbot ID>')
     .addField('4. Cleanup', 'Delete the private text channel created in step 1.')
-    .addField('5. Permissions', 'Configure your text channels so the Chatbase bot does not share any communal channels with users you do not want to have access.')
-    .addField('6. Rename', 'Right click on the Chatbase bot in the right side, and click change global nickname, rename it as you please.')
+    .addField('5. Permissions', 'Configure your text channels so the ChatGPT bot does not share any communal channels with users you do not want to have access.')
+    .addField('6. Rename', 'Right click on the ChatGPT bot in the right side, and click change global nickname, rename it as you please.')
     .addField('(1) NOTE', 'Only users with the admin privilege on the server will be able to configure the bot.')
     .addField('(2) NOTE', 'Any user that shares a text channel with the bot can query it.');
 
@@ -61,6 +61,9 @@ client.on('guildCreate', async (guild) => {
 });
 
 client.on('message', async (message) => {
+
+  console.log("HERE");
+
   if (message.author.bot) return;
 
   if (message.content.startsWith('.ping')) {
