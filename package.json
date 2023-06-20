@@ -1,0 +1,17 @@
+{
+  "name": "discord-gpt",
+  "version": "1.0.0",
+  "description": "Access ChatGPT through your discord server.",
+  "main": "chatGPT.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Jovan Milicev",
+  "license": "ISC",
+  "dependencies": {
+    "crypto": "^1.0.1",
+    "discord": "^0.8.2",
+    "discord.js": "^14.11.0",
+    "fs": "^0.0.1-security"
+  }
+}

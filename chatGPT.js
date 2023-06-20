@@ -1,19 +1,19 @@
+const { EmbedBuilder, Client, GatewayIntentBits } = require('discord.js');
+const db_manager = require('./db_manager');
 
-const { Client, GatewayIntentBits } = require('discord.js');
+message_url = 'https://www.chatbase.co/api/v1/chat'
 
 const client = new Client({
-	intents: [
-		GatewayIntentBits.Guilds,
-		GatewayIntentBits.GuildMessages,
-		GatewayIntentBits.MessageContent,
-		GatewayIntentBits.GuildMembers,
-	],
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.MessageContent,
+    GatewayIntentBits.GuildMembers,
+  ],
 });
-
 
 const axios = require('axios');
 const dotenv = require('dotenv');
-const db_manager = require('./db_manager');
 
 dotenv.config();
 
@@ -31,24 +31,28 @@ client.on('guildCreate', async (guild) => {
 
   const message = `
     Hello Admin! Thank you for inviting ChatGPT to your server!
-  
+
     To get started, you need to set the API key and chatbotID using the set command.
     For more information, the .help command is always available in the server.
     Step by step instructions are provided below.
   `;
 
-  const embed = new discord.MessageEmbed()
+  const embed = new EmbedBuilder()
     .setTitle('Getting Started')
     .setDescription('A step by step guide on how to get started')
     .setColor('#4F45E4')
-    .addField('1. Environment', 'Create a private text channel that only the ChatGPT bot and you can see using the permissions tab.')
-    .addField('2. Set API key', 'In the private channel, enter .set apikey <your API key>')
-    .addField('3. Set Chatbot ID', 'In the private channel, enter .set chatid < chatbot ID>')
-    .addField('4. Cleanup', 'Delete the private text channel created in step 1.')
-    .addField('5. Permissions', 'Configure your text channels so the ChatGPT bot does not share any communal channels with users you do not want to have access.')
-    .addField('6. Rename', 'Right click on the ChatGPT bot in the right side, and click change global nickname, rename it as you please.')
-    .addField('(1) NOTE', 'Only users with the admin privilege on the server will be able to configure the bot.')
-    .addField('(2) NOTE', 'Any user that shares a text channel with the bot can query it.');
+    .addFields(
+      { name: '1. Environment', value: 'Create a private text channel that only the ChatGPT bot and you can see using the permissions tab.', inline: true },
+      { name: '2. Set API key', value: 'In the private channel, enter .set apikey <your API key>', inline: true },
+      { name: '3. Set Chatbot ID', value: 'In the private channel, enter .set chatid < chatbot ID>', inline: true},
+      { name: '4. Cleanup', value: 'Delete the private text channel created in step 1.', inline: true },
+      { name: '5. Permissions', value: 'Configure your text channels so the ChatGPT bot does not share any communal channels with users you do not want to have access.', inline: true },
+      { name: '6. Rename', value: 'Right click on the ChatGPT bot in the right side, and click change global nickname, rename it as you please.', inline: true }
+    )
+    .addFields(
+      { name: '(1) NOTE', value: 'Only users with the admin privilege on the server will be able to configure the bot.', inline: true },
+      { name: '(2) NOTE', value: 'Any user that shares a text channel with the bot can query it.', inline: true }
+    );
 
   for (const member of adminMembers.values()) {
     try {
@@ -62,7 +66,6 @@ client.on('guildCreate', async (guild) => {
 
 client.on('messageCreate', async (message) => {
 
-  console.log("HERE");
 
   if (message.author.bot) return;
 
@@ -91,22 +94,23 @@ client.on('messageCreate', async (message) => {
       const response = await axios.post(message_url, data, { headers });
       const message = response.data.text;
 
-      const embed = new discord.MessageEmbed()
+      const embed = new EmbedBuilder()
         .setTitle('Response')
         .setDescription(message)
         .setColor('#4F45E4');
 
-      message.channel.send(embed);
+      message.channel.send({ embeds: [embed] });
     } catch (error) {
       const errorMessage = error.response ? error.response.data : error.message;
 
-      const embed = new discord.MessageEmbed()
+      const embed = new EmbedBuilder()
         .setTitle('ERROR (request-exception)')
         .setDescription('We did not get the response we expected, please check your API key and Chatbot ID')
         .setColor('#4F45E4')
-        .addField('Server: ', errorMessage);
+        .addFields({ name: 'Server: ', value: errorMessage, inline: true });
+        
 
-      message.channel.send(embed);
+      message.channel.send({ embeds: [embed] });
     }
   }
 
@@ -133,12 +137,12 @@ client.on('messageCreate', async (message) => {
 
       let buildmsg = '';
       let chunks = [];
-      const embed = new discord.MessageEmbed()
+      const embed = new EmbedBuilder()
         .setTitle('Response')
         .setDescription('⌛')
         .setColor('#4F45E4');
 
-      const sentMessage = await message.channel.send(embed);
+      const sentMessage = await message.channel.send({ embeds: [embed] });
 
       decoder.on('data', (chunk) => {
         const chunk_value = chunk.toString('utf-8');
@@ -156,12 +160,12 @@ client.on('messageCreate', async (message) => {
     } catch (error) {
       const errorMessage = error.response ? error.response.data : error.message;
 
-      const embed = new discord.MessageEmbed()
+      const embed = new EmbedBuilder()
         .setTitle('ERROR (request-exception)')
         .setDescription('We did not get the response we expected, please check your API key and Chatbot ID')
         .setColor('#4F45E4');
 
-      message.channel.send(embed);
+      message.channel.send({ embeds: [embed] });
     }
   }
 
@@ -184,15 +188,16 @@ client.on('messageCreate', async (message) => {
     const serverID = message.guild.id;
     const [chatbotid, apikey] = await pullParameters(serverID);
 
-    const embed = new discord.MessageEmbed()
+    const embed = new EmbedBuilder()
       .setTitle('Info')
       .setDescription('View your current chatbot configuration')
       .setColor('#4F45E4')
-      .addField('chatbot ID', chatbotid)
-      .addField(apikey.length > 15 ? 'api-key' : 'api-key', apikey)
-      .addField('server ID', serverID);
+      
+      .addFields({ name: 'chatbot ID', value: chatbotid, inline: true})
+      .addFields({ name: apikey.length > 15 ? 'api-key' : 'api-key', value: apikey, inline: true})
+      .addFields({ name: 'server ID', value: serverID, inline: true})
 
-    message.channel.send(embed);
+      message.channel.send({ embeds: [embed] });
   }
 
   if (message.content.startsWith('.create') && message.member.permissions.has('ADMINISTRATOR')) {
@@ -217,24 +222,29 @@ client.on('messageCreate', async (message) => {
         const response = await axios.post(url, data, { headers });
         const message = response.data;
 
-        const embed = new discord.MessageEmbed()
+        const embed = new EmbedBuilder()
           .setTitle('Operation Sent')
-          .setDescription('')
+          .setDescription('x')
           .setColor('#4F45E4')
-          .addField('Server Message: ', message);
+          .addFields(({ name: 'Server Message', value: message, inline: true}));
+          
+          
 
-        message.channel.send(embed);
+          
+
+        message.channel.send({ embeds: [embed] });
       } catch (error) {
         const errorMessage = error.response ? error.response.data : error.message;
 
-        const embed = new discord.MessageEmbed()
+        const embed = new EmbedBuilder()
           .setTitle('Operation Failed')
           .setDescription('Bot not created.')
           .setColor('#4F45E4')
-          .addField('error: ', 'The link provided does not appear to be valid, please check the link and try again.')
-          .addField('', 'Please ensure "HTTP" or "HTTPS" is included in the link prefix.');
+          .addFields ({ name: 'error: ', value: 'The link provided does not appear to be valid, please check the link and try again.', inline: true})
+          .addFields({ name: 'hint: ', value: 'Please ensure "HTTP" or "HTTPS" is included in the link prefix.', inline: true})
 
-        message.channel.send(embed);
+         
+        message.channel.send({ embeds: [embed] });
       }
     }
   }
@@ -252,51 +262,56 @@ client.on('messageCreate', async (message) => {
       const response = await axios.delete(url, { params, headers });
       const message = response.data.message;
 
-      const embed = new discord.MessageEmbed()
+      const embed = new EmbedBuilder()
         .setTitle('Operation Sent')
-        .setDescription('')
+        .setDescription('x')
         .setColor('#4F45E4')
-        .addField('Server Message: ', message);
+        .addFields({ name: 'Server Message:', value: message, inline: true})
 
-      message.channel.send(embed);
+
+      message.channel.send({ embeds: [embed] });
     } catch (error) {
       const errorMessage = error.response ? error.response.data : error.message;
 
-      const embed = new discord.MessageEmbed()
+      const embed = new EmbedBuilder()
         .setTitle('ERROR (request-exception)')
         .setDescription('We did not get the response we expected, please check your API key and Chatbot ID')
         .setColor('#4F45E4');
 
-      message.channel.send(embed);
+      message.channel.send({ embeds: [embed] });
     }
   }
 
   if (message.content.startsWith('.help')) {
     if (message.member.permissions.has('ADMINISTRATOR')) {
-      const embed = new discord.MessageEmbed()
+      const embed = new EmbedBuilder()
         .setTitle('Chatbase')
         .setDescription('Documentation for all Chatbase Commands')
         .setColor('#4F45E4')
-        .addField('message', 'message your chatbot | message <prompt>')
-        .addField('ping', 'receive response time from server')
-        .addField('help', 'list of all valid commands')
-        .addField('', 'ADMIN ZONE')
-        .addField('rmessage (BETA)', 'message your chatbot with streaming | rmessage <prompt>')
-        .addField('set (admin)', 'change api key or chatbot ID | set <apikey | chatid> <value>')
-        .addField('create (admin)', 'create a chatbot | create <name> <training link>')
-        .addField('delete (admin)', 'delete a chatbot | delete <chatid>');
+        .addFields(
+          { name: 'message', value: 'message your chatbot | message <prompt>', inline: true},
+          { name: 'ping', value: 'receive response time from server', inline: true },
+          { name: 'help', value: 'list of all valid commands', inline: true },
+          { name: '--', value: 'ADMIN ZONE', inline: true },
+          { name: 'rmessage (BETA)', value: 'message your chatbot with streaming | rmessage <prompt>', inline: true },
+          { name: 'set (admin)', value: 'change api key or chatbot ID | set <apikey | chatid> <value>', inline: true },
+          { name: 'create (admin)', value: 'create a chatbot | create <name> <training link>', inline: true },
+          { name: 'delete (admin)', value: 'delete a chatbot | delete <chatid>', inline: true }
+        );
 
-      message.channel.send(embed);
+        message.channel.send({ embeds: [embed] });
     } else {
-      const embed = new discord.MessageEmbed()
+      const embed = new EmbedBuilder()
         .setTitle('Help Section')
         .setDescription('How to use our chatbot.')
         .setColor('#4F45E4')
-        .addField('message', 'message your chatbot | message <prompt>')
-        .addField('ping', 'receive response time from server')
-        .addField('help', 'list of all valid commands');
+        .addFields(
+          { name: 'message', value: 'message your chatbot | message <prompt>', inline: true },
+          { name: 'ping', value: 'receive response time from server', inline: true },
+          { name: 'help', value: 'list of all valid commands', inline: true }
+        );
 
-      message.channel.send(embed);
+      message.channel.send({ embeds: [embed] });
     }
   }
 });
