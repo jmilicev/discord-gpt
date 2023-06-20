@@ -60,7 +60,7 @@ client.on('guildCreate', async (guild) => {
   }
 });
 
-client.on('message', async (message) => {
+client.on('messageCreate', async (message) => {
 
   console.log("HERE");
 
