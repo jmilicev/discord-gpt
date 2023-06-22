@@ -1,7 +1,7 @@
 const { EmbedBuilder, Client, GatewayIntentBits } = require('discord.js');
 const db_manager = require('./db_manager');
-
-message_url = 'https://www.chatbase.co/api/v1/chat'
+const fs = require('fs');
+const openai = require('openai-toolkit')
 
 const client = new Client({
   intents: [
@@ -18,9 +18,22 @@ const dotenv = require('dotenv');
 dotenv.config();
 
 client.on('ready', () => {
+
+  //clear server cache when rebooting
+  //to avoid bad decrypt error.
+  const path = './db.txt';
+  try {
+    if (fs.existsSync(path)) {
+      fs.unlinkSync(path);
+    }
+  } catch (err) {
+    console.error(err);
+  }
+  fs.writeFileSync(path, '', 'utf8');
+
   console.log(`Initiating....`);
   console.log(`We have logged in as ${client.user.tag}`);
-  console.log(`Chatbase is ready to receive commands!`);
+  console.log(`GPTbot is ready to receive commands!`);
   console.log(`My ID is: ${client.user.id}`);
 });
 
@@ -44,10 +57,9 @@ client.on('guildCreate', async (guild) => {
     .addFields(
       { name: '1. Environment', value: 'Create a private text channel that only the ChatGPT bot and you can see using the permissions tab.', inline: true },
       { name: '2. Set API key', value: 'In the private channel, enter .set apikey <your API key>', inline: true },
-      { name: '3. Set Chatbot ID', value: 'In the private channel, enter .set chatid < chatbot ID>', inline: true},
-      { name: '4. Cleanup', value: 'Delete the private text channel created in step 1.', inline: true },
-      { name: '5. Permissions', value: 'Configure your text channels so the ChatGPT bot does not share any communal channels with users you do not want to have access.', inline: true },
-      { name: '6. Rename', value: 'Right click on the ChatGPT bot in the right side, and click change global nickname, rename it as you please.', inline: true }
+      { name: '3. Cleanup', value: 'Delete the private text channel created in step 1.', inline: true },
+      { name: '4. Permissions', value: 'Configure your text channels so the ChatGPT bot does not share any communal channels with users you do not want to have access.', inline: true },
+      { name: '5. Rename', value: 'Right click on the ChatGPT bot in the right side, and click change global nickname, rename it as you please.', inline: true }
     )
     .addFields(
       { name: '(1) NOTE', value: 'Only users with the admin privilege on the server will be able to configure the bot.', inline: true },
@@ -73,230 +85,78 @@ client.on('messageCreate', async (message) => {
     message.channel.send(`Here! Response time: ${Math.round(client.ws.ping)}ms`);
   }
 
-  if (message.content.startsWith('.message')) {
+  if (message.content.startsWith('.message') || message.content.startsWith('.m')) {
     const serverID = message.guild.id;
-    const [_, content] = message.content.split(' ');
-    const [chatbot_id, api_key] = await pullParameters(serverID);
-
-    const headers = {
-      Authorization: `Bearer ${api_key}`,
-      'Content-Type': 'application/json',
-    };
-
-    const data = {
-      messages: [{ content: content, role: 'user' }],
-      chatId: chatbot_id,
-      stream: false,
-      temperature: 0,
-    };
-
-    try {
-      const response = await axios.post(message_url, data, { headers });
-      const message = response.data.text;
-
-      const embed = new EmbedBuilder()
+    const [_, ...temp] = message.content.split(' ');
+    const content = temp.join(' ');
+  
+    const api_key = await pullParameters(serverID);
+    
+    // Start typing indicator
+    message.channel.sendTyping();
+  
+    openai.callStatic(content, 0, 1000, 'gpt-3.5-turbo', '', api_key)
+      .then(response => {
+        const embed = new EmbedBuilder()
         .setTitle('Response')
-        .setDescription(message)
+        .setDescription(response)
         .setColor('#4F45E4');
-
-      message.channel.send({ embeds: [embed] });
-    } catch (error) {
-      const errorMessage = error.response ? error.response.data : error.message;
-
-      const embed = new EmbedBuilder()
+  
+        message.channel.send({ embeds: [embed] });
+      })
+      .catch(error => {
+        const embed = new EmbedBuilder()
         .setTitle('ERROR (request-exception)')
-        .setDescription('We did not get the response we expected, please check your API key and Chatbot ID')
+        .setDescription('We did not get the response we expected, please check your API key')
         .setColor('#4F45E4')
-        .addFields({ name: 'Server: ', value: errorMessage, inline: true });
-        
-
-      message.channel.send({ embeds: [embed] });
-    }
-  }
-
-  if (message.content.startsWith('.rmessage')) {
-    const serverID = message.guild.id;
-    const [_, content] = message.content.split(' ');
-    const [chatbot_id, api_key] = await pullParameters(serverID);
-
-    const headers = {
-      Authorization: `Bearer ${api_key}`,
-      'Content-Type': 'application/json',
-    };
-
-    const data = {
-      messages: [{ content: content, role: 'user' }],
-      chatbotId: chatbot_id,
-      stream: true,
-      temperature: 0,
-    };
-
-    try {
-      const response = await axios.post(message_url, data, { headers, responseType: 'stream' });
-      const decoder = response.data;
-
-      let buildmsg = '';
-      let chunks = [];
-      const embed = new EmbedBuilder()
-        .setTitle('Response')
-        .setDescription('⌛')
-        .setColor('#4F45E4');
-
-      const sentMessage = await message.channel.send({ embeds: [embed] });
-
-      decoder.on('data', (chunk) => {
-        const chunk_value = chunk.toString('utf-8');
-        chunks.push(chunk_value);
+        .addFields({ name: 'Server: ', value: error, inline: true });
+  
+        message.channel.send({ embeds: [embed] });
       });
-
-      decoder.on('end', async () => {
-        for (const chunk_value of chunks) {
-          buildmsg += chunk_value;
-          embed.setDescription(buildmsg);
-          await sentMessage.edit(embed);
-          await sleep(500);
-        }
-      });
-    } catch (error) {
-      const errorMessage = error.response ? error.response.data : error.message;
-
-      const embed = new EmbedBuilder()
-        .setTitle('ERROR (request-exception)')
-        .setDescription('We did not get the response we expected, please check your API key and Chatbot ID')
-        .setColor('#4F45E4');
-
-      message.channel.send({ embeds: [embed] });
-    }
   }
-
+  
   if (message.content.startsWith('.set') && message.member.permissions.has('ADMINISTRATOR')) {
     const serverID = message.guild.id;
     const [_, key, value] = message.content.split(' ');
-
-    let [chatbot_id, api_key] = await pullParameters(serverID);
-
-    if (key.toLowerCase() === 'chatid') {
-      await storeParameters(serverID, value, api_key);
-      message.channel.send('chatID set successfully.');
-    } else if (key.toLowerCase() === 'apikey') {
-      await storeParameters(serverID, chatbot_id, value);
+    
+    if (key.toLowerCase() === 'apikey') {
+      await storeParameters(serverID, value);
       message.channel.send('API key set successfully.');
     }
   }
 
   if (message.content.startsWith('.info') && message.member.permissions.has('ADMINISTRATOR')) {
     const serverID = message.guild.id;
-    const [chatbotid, apikey] = await pullParameters(serverID);
+
+
+    var api_key = await pullParameters(serverID);
 
     const embed = new EmbedBuilder()
       .setTitle('Info')
-      .setDescription('View your current chatbot configuration')
+      .setDescription('View your current configuration')
       .setColor('#4F45E4')
-      
-      .addFields({ name: 'chatbot ID', value: chatbotid, inline: true})
-      .addFields({ name: apikey.length > 15 ? 'api-key' : 'api-key', value: apikey, inline: true})
+      .addFields({ 
+        name: 'key', 
+        value: api_key.length > 15 ? 'Set' : api_key, 
+        inline: true
+    })    
       .addFields({ name: 'server ID', value: serverID, inline: true})
 
       message.channel.send({ embeds: [embed] });
   }
 
-  if (message.content.startsWith('.create') && message.member.permissions.has('ADMINISTRATOR')) {
-    const serverID = message.guild.id;
-    const [_, name, links] = message.content.split(' ');
-    const [chatbot_id, api_key] = await pullParameters(serverID);
-
-    const url = 'https://www.chatbase.co/api/v1/create-chatbot';
-    const headers = {
-      Authorization: `Bearer ${api_key}`,
-      'Content-Type': 'application/json',
-    };
-    const data = {
-      urlsToScrape: [links],
-      chatbotName: name,
-    };
-
-    const link_pattern = /^(http|https):\/\/[\w\-]+(\.[\w\-]+)+[/#?]?.*$/;
-
-    if (link_pattern.test(links)) {
-      try {
-        const response = await axios.post(url, data, { headers });
-        const message = response.data;
-
-        const embed = new EmbedBuilder()
-          .setTitle('Operation Sent')
-          .setDescription('x')
-          .setColor('#4F45E4')
-          .addFields(({ name: 'Server Message', value: message, inline: true}));
-          
-          
-
-          
-
-        message.channel.send({ embeds: [embed] });
-      } catch (error) {
-        const errorMessage = error.response ? error.response.data : error.message;
-
-        const embed = new EmbedBuilder()
-          .setTitle('Operation Failed')
-          .setDescription('Bot not created.')
-          .setColor('#4F45E4')
-          .addFields ({ name: 'error: ', value: 'The link provided does not appear to be valid, please check the link and try again.', inline: true})
-          .addFields({ name: 'hint: ', value: 'Please ensure "HTTP" or "HTTPS" is included in the link prefix.', inline: true})
-
-         
-        message.channel.send({ embeds: [embed] });
-      }
-    }
-  }
-
-  if (message.content.startsWith('.delete') && message.member.permissions.has('ADMINISTRATOR')) {
-    const serverID = message.guild.id;
-    const [_, name] = message.content.split(' ');
-    const [chatbot_id, api_key] = await pullParameters(serverID);
-
-    const url = 'https://www.chatbase.co/api/v1/delete-chatbot';
-    const params = { chatbotId: name };
-    const headers = { Authorization: `Bearer ${api_key}` };
-
-    try {
-      const response = await axios.delete(url, { params, headers });
-      const message = response.data.message;
-
-      const embed = new EmbedBuilder()
-        .setTitle('Operation Sent')
-        .setDescription('x')
-        .setColor('#4F45E4')
-        .addFields({ name: 'Server Message:', value: message, inline: true})
-
-
-      message.channel.send({ embeds: [embed] });
-    } catch (error) {
-      const errorMessage = error.response ? error.response.data : error.message;
-
-      const embed = new EmbedBuilder()
-        .setTitle('ERROR (request-exception)')
-        .setDescription('We did not get the response we expected, please check your API key and Chatbot ID')
-        .setColor('#4F45E4');
-
-      message.channel.send({ embeds: [embed] });
-    }
-  }
-
   if (message.content.startsWith('.help')) {
     if (message.member.permissions.has('ADMINISTRATOR')) {
       const embed = new EmbedBuilder()
-        .setTitle('Chatbase')
-        .setDescription('Documentation for all Chatbase Commands')
+        .setTitle('GPT Bot')
+        .setDescription('Documentation for all GPTbot Commands')
         .setColor('#4F45E4')
         .addFields(
           { name: 'message', value: 'message your chatbot | message <prompt>', inline: true},
           { name: 'ping', value: 'receive response time from server', inline: true },
           { name: 'help', value: 'list of all valid commands', inline: true },
           { name: '--', value: 'ADMIN ZONE', inline: true },
-          { name: 'rmessage (BETA)', value: 'message your chatbot with streaming | rmessage <prompt>', inline: true },
-          { name: 'set (admin)', value: 'change api key or chatbot ID | set <apikey | chatid> <value>', inline: true },
-          { name: 'create (admin)', value: 'create a chatbot | create <name> <training link>', inline: true },
-          { name: 'delete (admin)', value: 'delete a chatbot | delete <chatid>', inline: true }
+          { name: 'set (admin)', value: 'Set your API key | set <apikey <value>', inline: true },
         );
 
         message.channel.send({ embeds: [embed] });
@@ -317,16 +177,16 @@ client.on('messageCreate', async (message) => {
 });
 
 async function pullParameters(serverID) {
-  const [chatbotid, apikey] = db_manager.read_db(serverID);
-  if (chatbotid !== null && apikey !== null) {
-    return [chatbotid, apikey];
-  } else {
-    return ['Not Set', 'Not Set'];
+  try{
+    const record = await db_manager.read_db(serverID);
+    return record;
+  }catch(Error){
+    return "Not Found";
   }
 }
 
-async function storeParameters(serverID, chatbot_id, api_key) {
-  db_manager.add(serverID, chatbot_id, api_key);
+async function storeParameters(serverID, api_key) {
+  db_manager.add(serverID, api_key);
 }
 
 function sleep(ms) {
