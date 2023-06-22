@@ -54,7 +54,3 @@ After inviting the bot to your server, it will send a message to the administrat
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a pull request.
-
-## License
-
-This project is licensed under the terms of the MIT license.
