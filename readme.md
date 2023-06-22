@@ -2,6 +2,10 @@
 
 GPT-bot is a Discord bot powered by OpenAI's GPT-3 model. It can process and respond to messages using a GPT-3 model, resulting in near-human level interactions. It also includes server-specific configuration commands that are only accessible by administrators.
 
+This discord bot is being hosted on linode complimentary for all users. Invite it your discord server by using this link:
+```https://discord.com/api/oauth2/authorize?client_id=1120429356255281232&permissions=534723950656&scope=bot```
+
+
 ## Features
 
 1. **GPT-3 Conversations**: With GPT-bot, you can interact with GPT-3 right within your Discord server. It provides near-human level responses to your prompts.
